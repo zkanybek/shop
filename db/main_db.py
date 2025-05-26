@@ -1,74 +1,41 @@
 import sqlite3
-from db import queries
-from config import db_path
+from datetime import datetime
+
+conn = sqlite3.connect("tasks.db", check_same_thread=False)
+cursor = conn.cursor()
 
 def init_db():
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(queries.CREATE_TABLE_TASKS)
-
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            completed INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
-    conn.close()
 
-def get_tasks(filter_type='all'):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    # cursor.execute(queries.SELECT_TASKS)
+def get_tasks():
+    cursor.execute("SELECT id, text, completed, created_at FROM tasks")
+    return cursor.fetchall()
 
-    if filter_type == 'completed':
-        cursor.execute(queries.SELECT_completed)
-    elif filter_type == 'uncompleted':
-        cursor.execute(queries.SELECT_uncompleted)
-    else:
-        cursor.execute(queries.SELECT_TASKS)
-
-    tasks = cursor.fetchall()
-    conn.close()
-    return tasks
-
-# def get_tasks():
-#     conn = sqlite3.connect(db_path)
-#     cursor = conn.cursor()
-#     cursor.execute(queries.SELECT_TASKS)
-#     tasks = cursor.fetchall()
-#     conn.close()
-#     return tasks
-
-
-def add_task_db(task):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(queries.INSERT_TASK, (task,))
+def add_task_db(task_text):
+    created_at = datetime.now().isoformat()
+    cursor.execute("INSERT INTO tasks (text, completed, created_at) VALUES (?, ?, ?)", (task_text, 0, created_at))
     conn.commit()
-    task_id = cursor.lastrowid
-    conn.close()
-    return task_id
+    return cursor.lastrowid
 
-def update_task_db(task_id, new_task=None, completed=None):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    # cursor.execute(queries.UPDATE_TASK, (new_task, task_id))
-
-    if new_task is not None:
-        cursor.execute("UPDATE tasks SET task = ? WHERE id = ?", (new_task, task_id))
-
+def update_task_db(task_id, text=None, completed=None):
+    if text is not None:
+        cursor.execute("UPDATE tasks SET text = ? WHERE id = ?", (text, task_id))
     if completed is not None:
         cursor.execute("UPDATE tasks SET completed = ? WHERE id = ?", (completed, task_id))
-
     conn.commit()
-    conn.close()
-
-# def update_task_db(task_id, new_task):
-#     conn = sqlite3.connect(db_path)
-#     cursor = conn.cursor()
-#     cursor.execute(queries.UPDATE_TASK, (new_task, task_id))
-#     conn.commit()
-#     conn.close()
-
 
 def delete_task_db(task_id):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(queries.DELETE_TASK, (task_id,))
+    cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     conn.commit()
-    conn.close()
+
+def clear_history():
+    cursor.execute("DELETE FROM tasks")
+    conn.commit()
